@@ -1,0 +1,32 @@
+.auth-box {
+  max-width: 420px;
+  margin: 40px auto;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input,
+select,
+button {
+  padding: 10px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+}
+
+.success {
+  color: green;
+}
+
+.bottom-link {
+  margin-top: 12px;
+}

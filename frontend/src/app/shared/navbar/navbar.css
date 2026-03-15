@@ -1,0 +1,29 @@
+.navbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.right {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+a {
+  text-decoration: none;
+  color: #222;
+}
+
+a.active {
+  font-weight: bold;
+}
+
+button {
+  padding: 6px 10px;
+  cursor: pointer;
+}
