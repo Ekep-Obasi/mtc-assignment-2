@@ -1,38 +1,43 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import session from "express-session";
-
-import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
+
+import { env } from "./utils/env.js";
+import connectDB from "./config/db.js";
+import sessionMiddleware from "./config/session.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+
+import authRoutes from "./routes/authRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import requestRoutes from "./routes/requestRoutes.js";
+import quoteRoutes from "./routes/quoteRoutes.js";
 
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:4200",
+  origin: env.clientOrigin,
   credentials: true
 }));
 
 app.use(express.json());
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "devsecret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false
-    }
-  })
-);
+app.use(sessionMiddleware);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/requests", requestRoutes);
+app.use("/api/quotes", quoteRoutes);
 
-const PORT = process.env.PORT || 5000;
+app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+connectDB()
+  .then(() => {
+    app.listen(env.port, () => {
+      console.log(`Server running on port ${env.port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB:", err.message);
+    process.exit(1);
+  });
