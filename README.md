@@ -56,7 +56,7 @@ flowchart TB
 
 ### Folder Structure
 
-text```
+```
 backend/src/
   config/       db.js, session.js
   utils/        constants.js, env.js
