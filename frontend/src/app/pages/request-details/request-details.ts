@@ -1,6 +1,7 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { RequestService } from '../../core/services/request.service';
 import { QuoteService } from '../../core/services/quote.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -108,6 +109,9 @@ import { Quote } from '../../models/quote.model';
           </div>
         }
       </div>
+    } @else if (error) {
+      <p class="text-red-600">{{ error }}</p>
+      <a routerLink="/requests" class="text-blue-600 text-sm hover:underline">&larr; Back to requests</a>
     } @else {
       <p class="text-gray-500">Loading request...</p>
     }
@@ -118,11 +122,13 @@ export class RequestDetails implements OnInit {
   private fb = inject(FormBuilder);
   private requestService = inject(RequestService);
   private quoteService = inject(QuoteService);
+  private cdr = inject(ChangeDetectorRef);
   auth = inject(AuthService);
 
   request: ServiceRequest | null = null;
   quotes: Quote[] = [];
   quoteError = '';
+  error = '';
 
   quoteForm = this.fb.group({
     price: [null as number | null, [Validators.required, Validators.min(1)]],
@@ -131,17 +137,30 @@ export class RequestDetails implements OnInit {
   });
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.loadRequest(id);
-    this.loadQuotes(id);
-  }
-
-  loadRequest(id: string): void {
-    this.requestService.getRequestById(id).subscribe((r) => this.request = r);
-  }
-
-  loadQuotes(id: string): void {
-    this.quoteService.getQuotesForRequest(id).subscribe((q) => this.quotes = q);
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) {
+      this.error = 'Invalid request ID';
+      return;
+    }
+    this.error = '';
+    forkJoin({
+      request: this.requestService.getRequestById(id),
+      quotes: this.quoteService.getQuotesForRequest(id)
+    }).subscribe({
+      next: ({ request, quotes }) => {
+        this.request = request;
+        this.quotes = Array.isArray(quotes) ? quotes : [];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.error = err?.status === 404
+          ? 'Request not found.'
+          : err?.status === 401
+            ? 'Session expired. Please log in again.'
+            : err?.error?.message || err?.message || 'Failed to load request';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   isOwner(): boolean {
@@ -151,6 +170,21 @@ export class RequestDetails implements OnInit {
       ? this.request.createdBy._id
       : this.request.createdBy;
     return userId === createdBy;
+  }
+
+  private reload(): void {
+    if (!this.request) return;
+    const id = this.request._id;
+    forkJoin({
+      request: this.requestService.getRequestById(id),
+      quotes: this.quoteService.getQuotesForRequest(id)
+    }).subscribe({
+      next: ({ request, quotes }) => {
+        this.request = request;
+        this.quotes = Array.isArray(quotes) ? quotes : [];
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   canSubmitQuote(): boolean {
@@ -179,8 +213,7 @@ export class RequestDetails implements OnInit {
     this.quoteService.createQuote(this.request._id, this.quoteForm.value as any).subscribe({
       next: () => {
         this.quoteForm.reset();
-        this.loadRequest(this.request!._id);
-        this.loadQuotes(this.request!._id);
+        this.reload();
       },
       error: (err) => this.quoteError = err.error?.message || 'Failed to submit quote'
     });
@@ -188,18 +221,18 @@ export class RequestDetails implements OnInit {
 
   acceptQuote(quoteId: string): void {
     this.quoteService.acceptQuote(quoteId).subscribe({
-      next: () => {
-        this.loadRequest(this.request!._id);
-        this.loadQuotes(this.request!._id);
-      },
-      error: (err) => alert(err.error?.message || 'Failed to accept quote')
+      next: () => this.reload(),
+      error: (err) => alert(err?.error?.message || 'Failed to accept quote')
     });
   }
 
   updateStatus(status: string): void {
     if (!this.request) return;
     this.requestService.updateStatus(this.request._id, status).subscribe({
-      next: (r) => this.request = r,
+      next: (r) => {
+        this.request = r;
+        this.cdr.detectChanges();
+      },
       error: (err) => alert(err.error?.message || 'Failed to update status')
     });
   }

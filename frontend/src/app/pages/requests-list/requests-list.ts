@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { RequestService } from '../../core/services/request.service';
@@ -37,7 +37,13 @@ import { Category } from '../../models/category.model';
       <button (click)="loadRequests()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Search</button>
     </div>
 
-    @if (requests.length === 0) {
+    @if (error) {
+      <p class="text-red-600 bg-red-50 p-3 rounded">{{ error }}</p>
+    }
+    @if (loading) {
+      <p class="text-gray-500">Loading requests...</p>
+    }
+    @if (!loading && !error && requests.length === 0) {
       <p class="text-gray-500">No requests found.</p>
     }
 
@@ -63,6 +69,7 @@ import { Category } from '../../models/category.model';
 export class RequestsList implements OnInit {
   private requestService = inject(RequestService);
   private categoryService = inject(CategoryService);
+  private cdr = inject(ChangeDetectorRef);
   auth = inject(AuthService);
 
   requests: ServiceRequest[] = [];
@@ -70,6 +77,8 @@ export class RequestsList implements OnInit {
   filterStatus = '';
   filterCategory = '';
   filterKeyword = '';
+  loading = false;
+  error = '';
 
   ngOnInit(): void {
     this.categoryService.getCategories().subscribe((cats) => this.categories = cats);
@@ -82,7 +91,21 @@ export class RequestsList implements OnInit {
     if (this.filterCategory) filters.categoryId = this.filterCategory;
     if (this.filterKeyword.trim()) filters.q = this.filterKeyword.trim();
 
-    this.requestService.getRequests(filters).subscribe((data) => this.requests = data);
+    this.loading = true;
+    this.error = '';
+    this.requestService.getRequests(filters).subscribe({
+      next: (data) => {
+        this.requests = Array.isArray(data) ? data : [];
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.loading = false;
+        this.requests = [];
+        this.error = err?.status === 401 ? 'Session expired. Please log in again.' : err?.error?.message || err?.message || 'Failed to load requests';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   getCategoryName(req: ServiceRequest): string {
