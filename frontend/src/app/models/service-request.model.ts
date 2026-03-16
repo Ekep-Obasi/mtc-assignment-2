@@ -9,8 +9,8 @@ export interface ServiceRequest {
   _id: string;
   title: string;
   description: string;
-  categoryId: string;
-  createdBy: string;
+  categoryId: string | { _id: string; name: string };
+  createdBy: string | { _id: string; fullName: string; email: string };
   location: string;
   status: RequestStatus;
   acceptedQuoteId?: string;

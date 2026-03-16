@@ -7,8 +7,10 @@ import { Navbar } from './shared/navbar/navbar';
   standalone: true,
   imports: [RouterOutlet, Navbar],
   template: `
-    <app-navbar></app-navbar>
-    <router-outlet></router-outlet>
+    <app-navbar />
+    <main class="max-w-5xl mx-auto px-4 py-6">
+      <router-outlet />
+    </main>
   `
 })
 export class App {}

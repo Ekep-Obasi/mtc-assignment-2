@@ -1,30 +1,16 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { User, UserRole } from '../../models/user.model';
+import { environment } from '../../environment';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class AuthService {
+  private http = inject(HttpClient);
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
-  private mockUsers: Array<User & { password: string }> = [
-    {
-      _id: 'u1',
-      fullName: 'Resident Demo',
-      email: 'resident@test.com',
-      password: '123456',
-      role: 'resident'
-    },
-    {
-      _id: 'u2',
-      fullName: 'Provider Demo',
-      email: 'provider@test.com',
-      password: '123456',
-      role: 'provider'
-    }
-  ];
+  private url = `${environment.apiUrl}/auth`;
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
@@ -38,61 +24,26 @@ export class AuthService {
     return this.currentUserSubject.value?.role === role;
   }
 
-  register(payload: {
-    fullName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-  }): Observable<User> {
-    const exists = this.mockUsers.some(
-      (u) => u.email.toLowerCase() === payload.email.toLowerCase()
-    );
-
-    if (exists) {
-      return throwError(() => new Error('Email already exists.'));
-    }
-
-    const newUser: User & { password: string } = {
-      _id: crypto.randomUUID(),
-      fullName: payload.fullName,
-      email: payload.email.toLowerCase(),
-      password: payload.password,
-      role: payload.role
-    };
-
-    this.mockUsers.push(newUser);
-
-    return of({
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      role: newUser.role
-    });
+  register(payload: { fullName: string; email: string; password: string; role: UserRole }): Observable<User> {
+    return this.http.post<User>(`${this.url}/register`, payload);
   }
 
   login(email: string, password: string): Observable<User> {
-    const user = this.mockUsers.find(
-      (u) =>
-        u.email.toLowerCase() === email.toLowerCase() &&
-        u.password === password
+    return this.http.post<User>(`${this.url}/login`, { email, password }).pipe(
+      tap((user) => this.currentUserSubject.next(user))
     );
-
-    if (!user) {
-      return throwError(() => new Error('Invalid email or password.'));
-    }
-
-    const safeUser: User = {
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role
-    };
-
-    this.currentUserSubject.next(safeUser);
-    return of(safeUser);
   }
 
-  logout(): void {
-    this.currentUserSubject.next(null);
+  logout(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.url}/logout`, {}).pipe(
+      tap(() => this.currentUserSubject.next(null))
+    );
+  }
+
+  // check session on app startup or guard check
+  checkSession(): Observable<User> {
+    return this.http.get<User>(`${this.url}/me`).pipe(
+      tap((user) => this.currentUserSubject.next(user))
+    );
   }
 }

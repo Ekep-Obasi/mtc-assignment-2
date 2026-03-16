@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
+import { roleGuard } from './core/guards/role.guard';
 import { Login } from './pages/login/login';
 import { Register } from './pages/register/register';
 import { RequestsList } from './pages/requests-list/requests-list';
@@ -10,8 +12,8 @@ export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: Login },
   { path: 'register', component: Register },
-  { path: 'requests', component: RequestsList },
-  { path: 'requests/create', component: CreateRequest },
-  { path: 'requests/:id', component: RequestDetails },
-  { path: 'my-quotes', component: MyQuotes }
+  { path: 'requests', component: RequestsList, canActivate: [authGuard] },
+  { path: 'requests/create', component: CreateRequest, canActivate: [authGuard, roleGuard('resident')] },
+  { path: 'requests/:id', component: RequestDetails, canActivate: [authGuard] },
+  { path: 'my-quotes', component: MyQuotes, canActivate: [authGuard, roleGuard('provider')] }
 ];
