@@ -1,0 +1,517 @@
+{
+  "info": {
+    "name": "NSM - Neighborhood Service Marketplace",
+    "description": "Full E2E test collection for the NSM API. Run requests in order top to bottom.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "categoryId", "value": "" },
+    { "key": "requestId", "value": "" },
+    { "key": "quoteId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "1.1 Register Resident",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Alice Resident\",\n  \"email\": \"alice@nsm.com\",\n  \"password\": \"password123\",\n  \"role\": \"resident\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has user id', () => pm.expect(pm.response.json()._id).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Register Provider",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bob Provider\",\n  \"email\": \"bob@nsm.com\",\n  \"password\": \"password123\",\n  \"role\": \"provider\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Role is provider', () => pm.expect(pm.response.json().role).to.eql('provider'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Register Duplicate (expect 409)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Alice Again\",\n  \"email\": \"alice@nsm.com\",\n  \"password\": \"password123\",\n  \"role\": \"resident\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Login Resident",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@nsm.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is resident', () => pm.expect(pm.response.json().role).to.eql('resident'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has fullName', () => pm.expect(pm.response.json().fullName).to.exist);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Categories",
+      "item": [
+        {
+          "name": "2.1 Create Category",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/categories",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Plumbing\",\n  \"description\": \"Plumbing repair and installation\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('categoryId', pm.response.json()._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 List Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/categories"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Service Requests (as Resident)",
+      "item": [
+        {
+          "name": "3.1 Create Service Request",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Fix leaking kitchen sink\",\n  \"description\": \"Kitchen sink has been leaking under the cabinet for a week\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"location\": \"Toronto Downtown\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Status is open', () => pm.expect(pm.response.json().status).to.eql('open'));",
+                  "pm.collectionVariables.set('requestId', pm.response.json()._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 List Requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has results', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 List Requests (filter by status)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests?status=open"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All are open', () => { pm.response.json().forEach(r => pm.expect(r.status).to.eql('open')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Text Search Requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests?q=kitchen"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Get Request by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests/{{requestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has populated category', () => pm.expect(pm.response.json().categoryId.name).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 Logout Resident",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Quotes (as Provider)",
+      "item": [
+        {
+          "name": "4.1 Login Provider",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bob@nsm.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is provider', () => pm.expect(pm.response.json().role).to.eql('provider'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 List Open Requests",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests?status=open"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Submit Quote",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/requests/{{requestId}}/quotes",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 120,\n  \"message\": \"Can fix this tomorrow, have all parts needed\",\n  \"daysToComplete\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Status is pending', () => pm.expect(pm.response.json().status).to.eql('pending'));",
+                  "pm.collectionVariables.set('quoteId', pm.response.json()._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Verify Request Became Quoted",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests/{{requestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Request is quoted', () => pm.expect(pm.response.json().status).to.eql('quoted'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.5 My Quotes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/quotes/mine"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has quotes', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Logout Provider",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Accept Quote (as Resident)",
+      "item": [
+        {
+          "name": "5.1 Login Resident",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@nsm.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 View Quotes for Request",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests/{{requestId}}/quotes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has quotes', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Accept Quote",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/quotes/{{quoteId}}/accept",
+            "header": [{ "key": "Content-Type", "value": "application/json" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Quote accepted', () => pm.expect(pm.response.json().quote.status).to.eql('accepted'));",
+                  "pm.test('Request assigned', () => pm.expect(pm.response.json().request.status).to.eql('assigned'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 Verify Request is Assigned",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/requests/{{requestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is assigned', () => pm.expect(pm.response.json().status).to.eql('assigned'));",
+                  "pm.test('Has acceptedQuoteId', () => pm.expect(pm.response.json().acceptedQuoteId).to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Mark Request Completed",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/requests/{{requestId}}/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is completed', () => pm.expect(pm.response.json().status).to.eql('completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Logout Resident",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    }
+  ]
+}
