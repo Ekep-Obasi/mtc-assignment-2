@@ -24,16 +24,16 @@ graph LR
 ```mermaid
 flowchart TB
     subgraph Frontend
-        Pages["Pages\nLogin · Register · Requests List\nCreate Request · Details · My Quotes"]
-        Services["Services\nAuth · Category · Request · Quote"]
-        Guards["Guards · Interceptor"]
+        Pages["Pages"]
+        Services["Services"]
+        Guards["Guards + Interceptor"]
         Pages --> Services --> Guards
     end
 
     subgraph Backend
-        Routes["/auth · /categories\n/requests · /quotes"]
-        MW["requireAuth · requireRole\nerrorHandler"]
-        Ctrl["Controllers\nauth · category · request · quote"]
+        Routes["Routes"]
+        MW["Middleware"]
+        Ctrl["Controllers"]
         Routes --> MW --> Ctrl
     end
 
@@ -44,7 +44,7 @@ flowchart TB
         Q[("quotes")]
     end
 
-    Guards -->|"withCredentials"| Routes
+    Guards -->|withCredentials| Routes
     Ctrl --> U
     Ctrl --> Cat
     Ctrl --> SR
