@@ -1,11 +1,13 @@
-const session = require("express-session");
+import session from "express-session";
+import { env } from "../utils/env.js";
 
-module.exports = session({
-  secret: process.env.SESSION_SECRET || "devsecret",
+export default session({
+  secret: env.sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    sameSite: "lax"
+    sameSite: "lax",
+    secure: false
   }
 });
